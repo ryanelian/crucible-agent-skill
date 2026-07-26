@@ -2,15 +2,17 @@
 
 [![skills.sh](https://skills.sh/b/ryanelian/crucible-agent-skill)](https://skills.sh/ryanelian/crucible-agent-skill)
 
-**Mantra:** Less code is more. Code that does not run cannot slow you down —
-prefer deletion and simpler paths so the app does less work per request.
+**Less code is more. Code that does not exist cannot slow down your app. And it cannot slow down your team.**
 
-Burn a diff down. Optimize, simplify, delete dead code — pass after pass — until
-a clean pass finds nothing worth taking. Batches of **10 passes**; after a full
-non-empty batch, ask whether to run another 10.
+You spend twenty minutes vibe coding a new feature with an AI assistant, and it works flawlessly on the first try. But when you finally run git diff, you are greeted by a 2,000-line monster diff. Getting the feature to work was lightning fast, but making it maintainable is a whole different challenge.
 
-Less code only when it does not hurt performance, security, or correctness.
-No new abstractions "for clarity."
+Crucible is designed to solve that exact pain point by acting as an automated burn-down pass for your diff. Right after you finish vibe coding, Crucible takes over and runs continuous, guarded loops over your modified files to prune away the noise. It systematically deletes dead exports, flattens pass-through functions, and cleans up unneeded bloat.
+
+To ensure your code never breaks, Crucible applies strict guardrails to verify tests or compile-time checks after every tweak.
+
+This guarantees your pull request is actually maintainable for your team. By the time Crucible completes its run, your diff is lean, readable, and ready for code review.
+
+Burn the diff down. Optimize, simplify, and delete dead code, pass after pass, until a clean pass finds nothing worth taking. Runs in batches of 10 passes.
 
 ## Install
 
@@ -74,7 +76,9 @@ Pass 3: nothing worth taking. Crucible done.
 Leftover ambiguous: [ErrorCode map — might be public API].
 ```
 
-YAGNI take — dead helper, zero callers:
+### YAGNI 
+
+For example, Crucible will delete a dead helper function with zero callers:
 
 ```ts
 // before
@@ -88,7 +92,7 @@ export function load(id: string) { return db.get(id) }
 ## Pairing
 
 If [ponytail](https://github.com/DietrichGebert/ponytail) is installed, crucible
-leans on its YAGNI ladder for take-vs-skip. Optional — the gate stands alone.
+leans on its YAGNI ladder for take-vs-skip. This is optional.
 
 ## Layout
 
