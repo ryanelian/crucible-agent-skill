@@ -5,12 +5,9 @@ description: >
   elimination until a full pass finds nothing worth taking (batches of 10 passes;
   after each full non-empty batch, ask whether to run another 10). Take a change
   only when it does not overcomplicate and does not hurt performance, security,
-  or correctness; less code is good under those constraints. Use when the user
-  says "crucible",
-  "refine until clean", "simplify until done", "loop until no more opportunities",
-  or invokes /crucible — especially after a feature/refactor when the diff should
-  be burned down, not expanded. Do NOT use for greenfield features, architecture
-  redesigns, or unrelated cleanups outside the scoped diff.
+  or correctness. Use when the user says "crucible", "refine until clean",
+  "simplify until done", "loop until no more opportunities", or invokes /crucible
+  — especially after a feature/refactor when the diff should be burned down.
 argument-hint: "[path|scope]"
 license: MIT
 ---
@@ -26,29 +23,25 @@ after a full non-empty batch, ask before another 10. Less code only when it does
 
 ## Persistence
 
-ACTIVE until an empty pass, or the user declines another batch after a cap. No
-stop after one tidy-up. No "looks fine" exit — prove it with an empty pass
-(unless you hit the batch cap).
+ACTIVE until an empty pass or the user declines another batch. Prove “done”
+with an empty pass (unless the batch cap hits first).
 
-Off only: "stop crucible" / "normal mode".
+Off: "stop crucible" / "normal mode". Narrow: `/crucible path/or/area`.
 
-Narrow: `/crucible path/or/area` (or "crucible on path/or/area").
-
-**Loop in one turn when tools allow.** Run passes back-to-back until empty or
-batch cap. Do not ask between passes inside a batch. Yield mid-batch only if
-tools are blocked; then prefer a loop/wake skill (purpose `crucible`, next N +
-scope). No wake skill? Report last `Pass N:` and ask to continue. Never re-arm
-after an empty pass or a declined batch.
+**Loop in one turn when tools allow.** Passes back-to-back until empty or cap;
+no asks between passes. Yield mid-batch only if tools are blocked — then
+loop/wake (`crucible`, next N + scope) or ask to continue. Never re-arm after
+empty pass or declined batch.
 
 ## Pass cap
 
-**10 passes per batch.** N resets to 1 each batch. Every pass gets its own
-`Pass N:` line (see Output). Never skip a number. Never start pass 11 in a batch.
-Never auto-continue past the cap.
+**10 passes per batch.** N resets to 1 each batch. One `Pass N:` line per pass
+(see Output). Never skip a number. Never start pass 11 in a batch. Never
+auto-continue past the cap.
 
 | Stop | Next |
 |------|------|
-| Empty pass (any N) | Done. Do not ask for another batch. |
+| Empty pass (any N) | Done. No ask. |
 | Pass 10 non-empty | Ask for another 10. |
 | User **yes** | New batch, N = 1, same scope + lists. |
 | User **no** | Done. |
@@ -74,15 +67,6 @@ narrowing an export, search the whole repo for importers/callers. Zero callers
 in scope is not enough.
 
 Tests for scoped code are in scope when they block a take or assert deleted API.
-
-## Principles
-
-- **YAGNI** — delete dead code and unused surface; no "might need later."
-- **KISS** — fewer layers; no abstraction unless it removes more than it adds.
-- **No hurt** — never trade **performance**, **security**, or **correctness**
-  for line count.
-- **No oscillation** — do not undo a structural change from earlier in this
-  session (including prior batches).
 
 ## The pass
 
@@ -129,31 +113,36 @@ N starts at 1; increment by 1 each pass.
 - Clever micro-opts that add structure or a second path
 - Anything that weakens security or can fail open into wrong data
 - Migrations, new dependencies, broad API rewrites
+- Accessibility basics or anything the user asked to keep
 
-When unsure: **don't** — tag as ambiguous (see Ambiguous).
+When unsure: **don't** — tag as ambiguous.
 
 ## Ambiguous
 
-Unclear takes (not hard Gate skips). Keep a short session list.
+Unclear takes (not hard Gate skips). Session list:
 
 - Per pass: `skipped [ambiguous: <what> — <why one clause>]`
 - Dedup by subject; refresh why if it changes
-- Roll up when the run stops or hits a cap ask (format in Output)
-- Not mandatory work; user may clear items later
+- Roll up on stop / cap ask (see Output); not mandatory work
 
 ## Rules
 
-- No new features. No drive-bys outside the edit set. No "while we're here."
-- Deletion over abstraction. Boring over clever.
-- Read fully, then burn. Repo-wide caller check before deleting an export;
-  classify callers as prod vs test when hunting test-only surface.
-- Gate first, aesthetic second.
+- **YAGNI** — delete dead code / unused surface; no "might need later."
+- **KISS** — fewer layers; no abstraction unless it removes more than it adds.
+- **No hurt** — never trade performance, security, or correctness for line count.
+- **No oscillation** — do not undo a structural change from earlier in this
+  session (including prior batches).
+- No new features. No drive-bys outside the edit set.
+- Deletion over abstraction. Boring over clever. Gate first, aesthetic second.
+- Repo-wide caller check before deleting an export; classify prod vs test for
+  test-only surface.
 - Failed verification → revert and skip; never fix-forward.
 - Ambiguous → skip, tag, carry; never silent.
+- User insists on a skipped item → take next pass, no re-arguing.
 
 ## Take vs skip
 
-**Take (YAGNI / dead code)** — unused helper, zero repo-wide callers:
+**Take (dead code)** — zero repo-wide callers:
 
 ```ts
 // before
@@ -178,78 +167,36 @@ export function buildFixtureUser() { return { id: "t" } }
 
 `Pass 1: took [test-only buildFixtureUser + test update]. skipped [].`
 
-**Skip / ambiguous** — intentional test seam:
-
-`Pass 1: took []. skipped [ambiguous: testing/createApp — looks like supported testkit].`
-
-**Take (KISS)** — thin wrapper, single call site:
+**Take (KISS / flatten)** — thin wrapper or pure forwarder chain:
 
 ```ts
-// before
-function fetchUser(id: string) { return api.get(`/users/${id}`) }
-export async function show(id: string) {
-  return render(await fetchUser(id))
-}
-
-// after
-export async function show(id: string) {
-  return render(await api.get(`/users/${id}`))
-}
+// before: show → fetchUser → api.get  OR  s1 → s2 → s3 → s4
+// after:  show → api.get              OR  s1 → s4 (delete unused middle hops)
 ```
 
-`Pass 1: took [inline fetchUser]. skipped [].`
-
-**Take (flatten chain)** — middle hops only forward:
-
-```ts
-// before
-service1() { return service2() }
-service2() { return service3() }
-service3() { return service4() } // real work
-
-// after
-service1() { return service4() } // delete service2/service3 if nothing else calls them
-```
-
+`Pass 1: took [inline fetchUser]. skipped [].`  
 `Pass 1: took [flatten service1→service4; dead service2/service3]. skipped [].`
 
-**Skip / ambiguous** — hop has real behavior:
-
-`Pass 1: took []. skipped [ambiguous: service2 adds auth check — not a pure forwarder].`
-
-**Skip** — rename / extract / micro-opt / verify fail / ambiguous:
+**Skip:**
 
 ```
 Pass 1: took []. skipped [rename churn, extract interface, micro-opt cache].
 Pass 1: took [dead formatId]. skipped [failed verification: typecheck — inline fetchUser].
-Pass 1: took []. skipped [ambiguous: ErrorCode map — might be public API].
+Pass 1: took []. skipped [ambiguous: testing/createApp — supported testkit].
+Pass 1: took []. skipped [ambiguous: service2 adds auth check — not a pure forwarder].
 ```
 
 ## Output
 
-Every pass emits exactly one numbered line. No essays. No silent passes.
+Every pass: exactly one numbered line. No essays. No silent passes.
 
 Pattern: `Pass N: took […]. skipped […].`
 
 Tag skips when useful: plain gate skip, `ambiguous: …`, `failed verification: …`.
 
-Empty (any N):
-
-```
-Pass N: nothing worth taking. Crucible done.
-Leftover ambiguous: […]; […].
-```
-
-Cap (non-empty pass 10):
-
-```
-Pass 10: took […]. skipped […]. Cap reached. Continue for another 10 passes?
-Leftover ambiguous: […]; […].
-```
-
-User declines another batch: `Crucible done.` then the same rollup line if any.
-
-Omit `Leftover ambiguous` when the list is empty. Keep the list across yes-batches.
+Empty → done. Cap (non-empty pass 10) → ask. Decline → done. After any of those,
+emit `Leftover ambiguous: […]; […].` if the list is non-empty (omit if empty).
+Keep the list across yes-batches.
 
 ```
 Pass 1: took [dead formatId]. skipped [rename churn, ambiguous: ErrorCode map — might be public API].
@@ -258,13 +205,7 @@ Pass 3: nothing worth taking. Crucible done.
 Leftover ambiguous: [ErrorCode map — might be public API].
 ```
 
-## When NOT to burn
-
-Never take: trust-boundary validation, data-loss error handling, security,
-accessibility basics, anything the user asked to keep, migrations, new deps,
-broad API rewrites, or scope outside the edit set.
-
-User insists on a skipped item → take next pass, no re-arguing.
+Cap ask form: `Pass 10: took […]. skipped […]. Cap reached. Continue for another 10 passes?`
 
 ## Boundaries
 
