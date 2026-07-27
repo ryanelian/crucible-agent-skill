@@ -41,69 +41,51 @@ Source: [github.com/ryanelian/crucible-agent-skill](https://github.com/ryanelian
 
 ## Usage
 
-After a feature or messy refactor:
+Invoke Crucible right after you finish vibe coding a feature or refactor—before opening a pull request.
 
-- `crucible` / `/crucible` — loop until empty pass; ask after each 10-pass batch
-- `refine until clean` / `burn down diff` / `simplify until done`
-- `crucible on path/or/area` — narrow scope
+### Sample Prompts
 
-Scope is that feature’s diff: **staged + unstaged + relevant untracked**. If the
-working tree is clean: `git diff <default-branch>...HEAD` (`main` / `master` /
-`origin/HEAD` / etc.). Edits stay in that set; export and hop-deletion caller
-checks are **repo-wide**.
+Burn down your current working diff:
 
-Off: `stop crucible` / `normal mode`.
-
-Every pass must print its number. Cap is 10 per batch:
-
-```
-Pass 1: took [dead formatId]. skipped [rename churn].
-Pass 2: took [inline fetchUser]. skipped [].
-Pass 3: nothing worth taking. Crucible done.
+```sh
+/crucible clean up my new user auth feature
 ```
 
-At a non-empty ceiling:
+Or simply:
 
-```
-Pass 10: took [dead branch]. skipped []. Cap reached. Continue for another 10 passes?
-```
-
-Yes → another `Pass 1`…`Pass 10` batch (ask again). No → done. Empty pass → done, no ask.
-
-Ambiguous skips are tagged and rolled up when the run stops or hits a cap:
-
-```
-Pass 1: took []. skipped [ambiguous: ErrorCode map — might be public API].
-…
-Pass 3: nothing worth taking. Crucible done.
-Leftover ambiguous: [ErrorCode map — might be public API].
+```sh
+/crucible
 ```
 
-### YAGNI 
+You can also narrow scope to a specific path or module. By default, Crucible targets active `git diff` changes. Passing an explicit file or path in your prompt allows you to run Crucible's burn-down passes on existing, unmodified files in your repository.
 
-For example, Crucible will delete a dead helper function with zero callers:
+```sh
+/crucible @/src/services/billing.tsx
+```
+
+You can also stop early:
+
+```sh
+stop crucible
+```
+
+### What Happens Next
+
+Crucible targets your git diff by default (or an explicit path you name), strips away dead code and redundant wrappers, and verifies every change against your test suite until the scoped set is lean and review-ready.
 
 ```ts
-// before
+// Before Crucible: Dead functions and unused helpers left over from prototyping
 function formatId(id: string) { return id.trim() }
 export function load(id: string) { return db.get(id) }
 
-// after
+// After Crucible: Unused surface burned away
 export function load(id: string) { return db.get(id) }
 ```
 
-## Pairing
+## Skill Synergy
 
 If [ponytail](https://github.com/DietrichGebert/ponytail) is installed, crucible
 leans on its YAGNI ladder for take-vs-skip. This is optional.
-
-## Layout
-
-```
-skills/
-└── crucible/
-    └── SKILL.md
-```
 
 ## License
 

@@ -15,15 +15,16 @@ license: MIT
 **Mantra:** Less code is more. Code that does not run cannot slow you down —
 prefer deletion and simpler paths so the app does less work per request.
 
-**Identity:** You refine the scoped feature/refactor diff — delete, simplify,
-flatten. You do not add features, widen product scope, or redesign architecture.
+**Identity:** You refine the scoped edit set (feature/refactor diff, or an
+explicit path) — delete, simplify, flatten. You do not add features, widen
+product scope, or redesign architecture.
 
 ## Batching & done when
 
 ACTIVE until done. Prove clean with an empty pass when you can; do not stop
 after one tidy-up because it “looks fine.”
 
-Narrow: `/crucible path/or/area`.
+Path scope: `/crucible path/or/area` (see Scope — explicit path overrides git).
 
 **10 passes per batch.** N resets to 1 each batch. One `Pass N:` line per pass
 (see Output). Never skip a number. Never start pass 11 in a batch. Never
@@ -44,20 +45,23 @@ batch. Do not invent a loop mechanism if **/loop** is not installed.
 
 ## Scope
 
-Target = the feature/refactor diff — not the whole repo. User may narrow path.
+Not the whole repo. Resolve the **edit set** as follows:
 
-Resolve (first that yields files):
-
-1. **Dirty:** `git diff` + `git diff --staged` + untracked that belong to the
-   change (skip `node_modules/`, build output, `.env`, etc.)
-2. **Clean tree:** `git diff <default-branch>...HEAD` (three dots). Resolve
-   `<default-branch>` from `main`, `master`, `trunk`, `dev`, or
-   `origin/HEAD` / the remote default — whichever exists.
-3. **Fallback:** files touched this session that belong to the change.
+1. **Explicit path (wins):** If the user names a file or folder
+   (`/crucible src/services/billing.tsx`, “crucible on src/auth”, etc.), that
+   path **is** the edit set — even when those files are git-clean / unmodified.
+   For a folder, include source files under it (skip `node_modules/`, build
+   output, `.env`, etc.). Do not require a dirty diff.
+2. **Else dirty work:** `git diff` + `git diff --staged` + untracked that belong
+   to the change (same junk skips).
+3. **Else clean tree, feature committed:** `git diff <default-branch>...HEAD`
+   (three dots). Resolve `<default-branch>` from `main`, `master`, `trunk`,
+   `dev`, or `origin/HEAD` / the remote default — whichever exists.
+4. **Else fallback:** files touched this session that belong to the change.
 
 Lock that **edit set** for the session (plus files crucible changes inside it).
 Re-read contents each pass. Do not expand beyond it — no drive-by neighbors,
-no package-wide cleanup.
+no package-wide cleanup outside the named path.
 
 **Caller checks are repo-wide** (critical): before deleting or narrowing an
 export, search the whole repo for importers/callers. Zero callers in the edit
